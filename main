@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Visualisateur de Palettisation 3D</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f3f4f6; margin: 0; padding: 24px; color: #1f2937; }
+        .max-w-7xl { max-w: 1280px; margin: 0 auto; }
+        .space-y-6 > * + * { margin-top: 24px; }
+        .grid { display: grid; gap: 24px; }
+        @media (min-width: 768px) {
+            .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        .bg-white { background-color: #ffffff; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .border { border: 1px solid #e5e7eb; padding: 16px; border-radius: 6px; }
+        .bg-gray-50 { background-color: #f9fafb; }
+        .bg-gray-900 { background-color: #111827; }
+        label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; color: #374151; }
+        input { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        .btn { width: 100%; background-color: #2563eb; color: white; font-weight: bold; padding: 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; transition: background 0.2s; }
+        .btn:hover { background-color: #1d4ed8; }
+        h1 { font-size: 28px; font-weight: bold; margin-top: 0; }
+        h2 { font-size: 20px; font-weight: 600; margin-top: 0; margin-bottom: 16px; }
+        h3 { font-size: 16px; font-weight: bold; margin-top: 0; margin-bottom: 12px; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; }
+        h4 { text-align: center; background-color: #f3f4f6; padding: 8px; margin: 0; border-radius: 4px; font-size: 16px; }
+        ul { list-style: none; padding: 0; margin: 16px 0; font-size: 14px; }
+        li { display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 4px; }
+        .border-t { border-top: 1px solid #e5e7eb; padding-top: 8px; font-weight: bold; }
+        .text-blue { color: #2563eb; font-weight: bold; }
+        .text-emerald { color: #059669; }
+        .text-red-box { background-color: #fee2e2; color: #dc2626; padding: 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+        .canvas-container { width: 100%; height: 260px; border-radius: 8px; overflow: hidden; margin-top: 12px; cursor: grab; }
+        .canvas-container:active { cursor: grabbing; }
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        .text-muted { font-size: 10px; color: #9ca3af; margin-top: 4px; }
+    </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <div class="max-w-7xl space-y-6">
+        <h1 style="color: #1f2937;">Simulateur de Palettisation Comparatif 3D</h1>
+
+        <div class="bg-white">
+            <h2 style="color: #2563eb;">1. Données du Colis / Article</h2>
+            <div class="grid grid-4">
+                <div><label>Référence</label><input type="text" id="ref" value="ART-001"></div>
+                <div><label>Longueur Colis (cm)</label><input type="number" id="c_long" value="40"></div>
+                <div><label>Largeur Colis (cm)</label><input type="number" id="c_larg" value="30"></div>
+                <div><label>Hauteur Colis (cm)</label><input type="number" id="c_haut" value="20"></div>
+                <div><label>Poids Colis (kg)</label><input type="number" id="c_poids" value="5"></div>
+                <div><label>PCB (Pcs/Colis)</label><input type="number" id="c_pcb" value="12"></div>
+                <div><label>Prix de revient (€)</label><input type="number" id="c_prix" value="15.50"></div>
+            </div>
+        </div>
+
+        <div class="bg-white">
+            <h2 class="text-emerald">2. Configuration des Supports, Débords, Hauteurs &amp; Poids</h2>
+            <div class="grid grid-3">
+                <div class="border bg-gray-50">
+                    <h3>1/ Palette Europe (120x80)</h3>
+                    <div class="grid grid-4" style="gap: 8px;">
+                        <div style="grid-column: span 2;"><label style="font-size:11px;">Débord L. (cm)</label><input type="number" id="deb_L_europe" value="0"></div>
+                        <div style="grid-column: span 2;"><label style="font-size:11px;">Débord l. (cm)</label><input type="number" id="deb_l_europe" value="0"></div>
+                        <div style="grid-column: span 2;"><label style="font-size:11px; color:#059669;">H. Max (cm)</label><input type="number" id="H_europe" value="180" style="font-weight:bold; color:#059669;"></div>
+                        <div style="grid-column: span 2;"><label style="font-size:11px; color:#059669;">Poids Max (kg)</label><input type="number" id="p_max_europe" value="400" style="font-weight:bold; color:#059669;"></div>
+                    </div>
+                </div>
+                <div class="border bg-gray-50">
+                    <h3>2/ Support Plateau (200x120)</h3>
+                    <div class="grid grid-4" style="gap: 8px;">
+                        <div style="grid-column: span 2;"><label style="font-size:11px;">Débord L. (cm)</label><input type="number" id="deb_L_plateau" value="0"></div>
+                        <div style="grid-column: span 2;"><label style="font-size:11px;">Débord l. (cm)</label><input type="number" id="deb_l_plateau" value="0"></div>
+                        <div style="grid-column: span 2;"><label style="font-size:11px; color:#059669;">H. Max (cm)</label><input type="number" id="H_plateau" value="150" style="font-weight:bold; color:#059669;"></div>
+                        <div style="grid-column: span 2;"><label style="font-size:11px; color:#059669;">Poids Max (kg)</label><input type="number" id="p_max_plateau" value="700" style="font-weight:bold; color:#059669;"></div>
+                    </div>
+                </div>
+                <div class="border bg-gray-50">
+                    <h3>3/ Support PalRack (130x93.5)</h3>
+                    <div class="grid grid-4" style="gap: 8px;">
+                        <div style="grid-column: span 2;"><label style="font-size:11px;">Débord L. (cm)</label><input type="number" id="deb_L_palrack" value="0"></div>
+                        <div style="grid-column: span 2;"><label style="font-size:11px;">Débord l. (cm)</label><input type="number" id="deb_l_palrack" value="0"></div>
+                        <div style="grid-column: span 2;"><label style="font-size:11px; color:#059669;">H. Max (cm)</label><input type="number" id="H_palrack" value="215" style="font-weight:bold; color:#059669;"></div>
+                        <div style="grid-column: span 2;"><label style="font-size:11px; color:#059669;">Poids Max (kg)</label><input type="number" id="p_max_palrack" value="1500" style="font-weight:bold; color:#059669;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button onclick="calculerPalettisation()" class="btn">
+            Calculer et Visualiser en 3D
+        </button>
+
+        <div id="zone-resultats" class="hidden grid grid-3"></div>
+    </div>
+
+    <script>
+        // Configuration immuable des structures à vide
+        const configSupportsDeBase = {
+            europe: { nom: "Palette Europe", L: 120, l: 80, h_vide: 15, p_vide: 15, cout_h: 1.40 },
+            plateau: { nom: "Support Plateau", L: 200, l: 120, h_vide: 15, p_vide: 20, cout_h: 2.80 },
+            palrack: { nom: "Support PalRack", L: 130, l: 93.5, h_vide: 15, p_vide: 30, cout_h: 3.70 }
+        };
+
+        function calculerPalettisation() {
+            const zone = document.getElementById('zone-resultats');
+            zone.innerHTML = ''; 
+            zone.classList.remove('hidden');
+
+            const c_L = parseFloat(document.getElementById('c_long').value);
+            const c_l = parseFloat(document.getElementById('c_larg').value);
+            const c_H = parseFloat(document.getElementById('c_haut').value);
+            const c_poids = parseFloat(document.getElementById('c_poids').value);
+            const c_pcb = parseInt(document.getElementById('c_pcb').value);
+            const c_prix = parseFloat(document.getElementById('c_prix').value);
+
+            Object.keys(configSupportsDeBase).forEach(key => {
+                const base = configSupportsDeBase[key];
+                
+                const deb_L = parseFloat(document.getElementById(`deb_L_${key}`).value) || 0;
+                const deb_l = parseFloat(document.getElementById(`deb_l_${key}`).value) || 0;
+                const H_max = parseFloat(document.getElementById(`H_${key}`).value) || base.h_vide;
+                const p_max = parseFloat(document.getElementById(`p_max_${key}`).value) || base.p_vide;
+
+                const sup = { ...base, deb_L, deb_l, H: H_max, p_max };
+
+                const L_max = sup.L + sup.deb_L;
+                const l_max = sup.l + sup.deb_l;
+                const H_utile = sup.H - sup.h_vide;
+
+                // Algorithme d'orientation
+                let nx1 = Math.floor(L_max / c_L);
+                let ny1 = Math.floor(l_max / c_l);
+                let total1 = nx1 * ny1;
+
+                let nx2 = Math.floor(L_max / c_l);
+                let ny2 = Math.floor(l_max / c_L);
+                let total2 = nx2 * ny2;
+
+                let colis_par_couche = total1;
+                let sensInverse = false;
+                if (total2 > total1) {
+                    colis_par_couche = total2;
+                    sensInverse = true;
+                }
+
+                // Arbitrage Hauteur vs Contrainte de poids maximale
+                let couches = Math.floor(H_utile / c_H);
+                if (couches < 0) couches = 0;
+
+                const poids_max_marchandise = sup.p_max - sup.p_vide;
+                const poids_une_couche = colis_par_couche * c_poids;
+                
+                if (poids_une_couche > 0) {
+                    const couches_max_poids = Math.floor(poids_max_marchandise / poids_une_couche);
+                    if (couches > couches_max_poids) couches = couches_max_poids;
+                } else {
+                    couches = 0;
+                }
+                if (couches < 0) couches = 0;
+
+                const total_colis = colis_par_couche * couches;
+                const total_pieces = total_colis * c_pcb;
+                const poids_total = (total_colis * c_poids) + sup.p_vide;
+                const valeur_support = total_pieces * c_prix;
+                const cout_mensuel = valeur_support > 0 ? (sup.cout_h * 4.25) / valeur_support : 0;
+
+                const card = document.createElement('div');
+                card.className = "bg-white";
+                card.style.display = "flex";
+                card.style.flexDirection = "column";
+                card.style.justifyContent = "between";
+                
+                card.innerHTML = `
+                    <div>
+                        <h4>${sup.nom}</h4>
+                        <ul>
+                            <li><span>📦 Colis / couche :</span> <span class="text-blue">${colis_par_couche}</span></li>
+                            <li><span>🥞 Couches :</span> <span class="text-blue">${couches}</span></li>
+                            <li class="border-t"><span>🔢 Total Colis :</span> <span>${total_colis}</span></li>
+                            <li><span>🧩 Total Pièces :</span> <span>${total_pieces}</span></li>
+                            <li><span>⚖️ Poids global :</span> <span>${poids_total.toFixed(1)} kg / ${sup.p_max} kg</span></li>
+                            <li><span>📐 Hauteur totale :</span> <span>${(sup.h_vide + (couches * c_H)).toFixed(1)} cm / ${sup.H} cm</span></li>
+                            <li class="border-t"><span>💰 Valeur Marchandise :</span> <span>${valeur_support.toFixed(2)} €</span></li>
+                        </ul>
+                        <div class="text-red-box">
+                            📉 Coût Stockage Mensuel : ${(cout_mensuel * 100).toFixed(4)}% de la valeur
+                        </div>
+                    </div>
+                    <div id="canvas-${key}" class="canvas-container bg-gray-900"></div>
+                    <p class="text-center text-muted">Clic + glisser pour pivoter | Molette pour zoomer</p>
+                `;
+                zone.appendChild(card);
+
+                // Initialisation de l'environnement graphique 3D
+                init3D(key, sup, c_L, c_l, c_H, couches, sensInverse);
+            });
+        }
+
+        function init3D(key, sup, c_L, c_l, c_H, nbCouches, sensInverse) {
+            const container = document.getElementById(`canvas-${key}`);
+            if (!container) return;
+
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111827); 
+
+            const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 1, 1000);
+            camera.position.set(sup.L * 1.3, sup.H * 1.3, sup.l * 1.8);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+            dirLight.position.set(200, 400, 200);
+            scene.add(dirLight);
+
+            // Structure du support
+            const supportGeo = new THREE.BoxGeometry(sup.L, sup.h_vide, sup.l);
+            const supportMat = new THREE.MeshLambertMaterial({ color: 0x78350f }); 
+            const supportMesh = new THREE.Mesh(supportGeo, supportMat);
+            supportMesh.position.set(0, sup.h_vide / 2, 0);
+            scene.add(supportMesh);
+
+            const dimX = sensInverse ? c_l : c_L;
+            const dimZ = sensInverse ? c_L : c_l;
+
+            const nx = Math.floor((sup.L + sup.deb_L) / dimX);
+            const nz = Math.floor((sup.l + sup.deb_l) / dimZ);
+
+            const largeurTotaleColisX = nx * dimX;
+            const profondeurTotaleColisZ = nz * dimZ;
+
+            const dX = -largeurTotaleColisX / 2;
+            const dZ = -profondeurTotaleColisZ / 2;
+
+            const colisGeo = sensInverse ? new THREE.BoxGeometry(c_l, c_H, c_L) : new THREE.BoxGeometry(c_L, c_H, c_l);
+            const colisMat = new THREE.MeshLambertMaterial({ color: 0xd97706 }); 
+            const edges = new THREE.EdgesGeometry(colisGeo);
+            const lineMat = new THREE.LineBasicMaterial({ color: 0x451a03 });
+
+            for (let c = 0; c < nbCouches; c++) {
+                for (let x = 0; x < nx; x++) {
+                    for (let z = 0; z < nz; z++) {
+                        const block = new THREE.Mesh(colisGeo, colisMat);
+                        const wire = new THREE.LineSegments(edges, lineMat);
+                        block.add(wire);
+
+                        const posX = dX + (x * dimX) + (dimX / 2);
+                        const posY = sup.h_vide + (c * c_H) + (c_H / 2);
+                        const posZ = dZ + (z * dimZ) + (dimZ / 2);
+
+                        block.position.set(posX, posY, posZ);
+                        scene.add(block);
+                    }
+                }
+            }
+
+            controls.target.set(0, sup.H / 2, 0);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+    </script>
+</body>
+</html>
